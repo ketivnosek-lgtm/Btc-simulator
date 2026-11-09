@@ -33,14 +33,18 @@ async function tick(){
  if(quoteRequestInProgress)return;
  quoteRequestInProgress=true;
  const status=document.getElementById('quote-status');
+ const requestStartedAt=Date.now();
  try {
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
    let response;try{response=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_last_updated_at=true',{cache:'no-store',signal:controller.signal})}finally{clearTimeout(timeout)}
    if(!response.ok)throw new Error('HTTP '+response.status);
    const payload=await response.json(),quote=Number(payload?.bitcoin?.usd),sourceTime=Number(payload?.bitcoin?.last_updated_at)*1000;
    if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(sourceTime)||Date.now()-sourceTime>120000||sourceTime>Date.now()+60000)throw new Error('Neplatná nebo zastaralá data');
+   if(lastSuccessfulSourceAt && sourceTime < lastSuccessfulSourceAt)throw new Error('Zdroj vrátil starší kurz');
+   if(Date.now()-requestStartedAt>30000)throw new Error('Odpověď přišla příliš pozdě');
    livePrice=quote;lastQuoteAt=Date.now();lastSourceAt=sourceTime;lastSuccessfulSourceAt=sourceTime;status.textContent='CoinGecko · '+new Date(sourceTime).toLocaleTimeString('cs-CZ');
    state.prices.push(quote);if(state.prices.length>500)state.prices.shift();
+   // Čekající příkazy jsou vyhodnocovány jen podle ověřeného čerstvého kurzu.
    for(const o of [...state.pending]){
      const hit=o.type==='limit'?(o.side==='long'?quote<=o.target:quote>=o.target):(o.side==='long'?quote>=o.target:quote<=o.target);
      if(hit&&open(o.side,o.qty,quote))state.pending=state.pending.filter(x=>x.id!==o.id);
