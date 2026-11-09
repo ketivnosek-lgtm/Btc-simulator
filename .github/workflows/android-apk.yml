@@ -39,7 +39,17 @@ jobs:
           find app/src/main -type f -maxdepth 9 -print
           gradle --version
       - name: Build debug APK with diagnostics
-        run: gradle --no-daemon --stacktrace --warning-mode all clean assembleDebug
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace --warning-mode all clean assembleDebug 2>&1 | tee android-build.log
+      - name: Upload diagnostic build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Btc-simulator-build-log
+          path: android-build.log
+          if-no-files-found: warn
       - name: Verify APK exists
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
