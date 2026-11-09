@@ -6,14 +6,14 @@
 Webovou verzi lze otevřít přes `index.html`. Android verze používá WebView a načítá stejný simulátor z lokálních assets.
 
 ## Funkce
-- Simulovaný BTC/USD svíčkový graf (generované ceny, **nikoli živý kurz**)
+- BTC/USD kurz z veřejného CoinGecko API (obnovení každých 60 sekund, čas zdrojové aktualizace a stav chyby)
 - Virtuální kapitál 100 000 USD
 - Long / Short pozice, uzavírání a výpočet zisku či ztráty
 - Tržní, limitní a stop příkazy
 - Historie, statistiky a výzvy
 - Uložení stavu do localStorage a reset
 
-**Upozornění:** pouze tréninková hra bez skutečných peněz a bez živých burzovních dat.
+**Upozornění:** pouze tréninková hra bez skutečných peněz a se skutečným spotovým kurzem, nikoli se skutečnými obchody.
 
 ## Android APK
 
