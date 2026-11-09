@@ -41,8 +41,9 @@ async function tick(){
    const payload=await response.json(),quote=Number(payload?.bitcoin?.usd),sourceTime=Number(payload?.bitcoin?.last_updated_at)*1000;
    if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(sourceTime)||Date.now()-sourceTime>120000||sourceTime>Date.now()+60000)throw new Error('Neplatná nebo zastaralá data');
    if(lastSuccessfulSourceAt && sourceTime < lastSuccessfulSourceAt)throw new Error('Zdroj vrátil starší kurz');
+   if(lastSuccessfulSourceAt && sourceTime === lastSuccessfulSourceAt && livePrice !== null && quote !== livePrice)throw new Error('Nekonzistentní kurz se stejným časem');
    if(Date.now()-requestStartedAt>30000)throw new Error('Odpověď přišla příliš pozdě');
-   livePrice=quote;lastQuoteAt=Date.now();lastSourceAt=sourceTime;lastSuccessfulSourceAt=sourceTime;status.textContent='CoinGecko · '+new Date(sourceTime).toLocaleTimeString('cs-CZ');
+   livePrice=quote;lastQuoteAt=Date.now();lastSourceAt=sourceTime;lastSuccessfulSourceAt=sourceTime;status.textContent='CoinGecko · aktualizováno '+new Date(sourceTime).toLocaleString('cs-CZ');
    state.prices.push(quote);if(state.prices.length>500)state.prices.shift();
    // Čekající příkazy jsou vyhodnocovány jen podle ověřeného čerstvého kurzu.
    for(const o of [...state.pending]){
