@@ -21,7 +21,7 @@
 <section id="vyzvy" class="page"><h2>Výzvy a úspěchy 🏆</h2><div class="tile">První uzavřený obchod: <b id="challenge1"></b></div><div class="tile">10 ziskových obchodů: <b id="challenge2"></b></div><div class="tile">Zisk +10 %: <b id="challenge3"></b></div><button style="background:#7034d7;padding:13px;border-radius:10px" onclick="reset()">Resetovat simulaci</button></section>
 </main><nav id="nav"><button class="active" data-page="obchod">⌂<br>Obchod</button><button data-page="pozice">▣<br>Pozice</button><button data-page="historie">◷<br>Historie</button><button data-page="statistiky">▥<br>Statistiky</button><button data-page="vyzvy">🏆<br>Výzvy</button></nav>
 <script>
-const KEY='btc-sim-v1',start=100000;let livePrice=null,lastQuoteAt=0,lastSourceAt=0,lastSuccessfulSourceAt=0;let state;try{state=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!state||!Array.isArray(state.prices))state={cash:start,prices:[],positions:[],pending:[],history:[],equity:[start]};state.prices=[];let type='market',interval=90;
+const KEY='btc-sim-v1',start=100000;let livePrice=null,lastQuoteAt=0,lastSourceAt=0,lastSuccessfulSourceAt=0,lastSuccessfulPrice=null;let state;try{state=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!state||!Array.isArray(state.prices))state={cash:start,prices:[],positions:[],pending:[],history:[],equity:[start]};state.prices=[];let type='market',interval=90;
 const fmt=(n,d=2)=>Number(n).toLocaleString('cs-CZ',{minimumFractionDigits:d,maximumFractionDigits:d});const p=()=>livePrice;const pnl=x=>((p()??x.entry)-x.entry)*x.qty*(x.side==='long'?1:-1);const realized=()=>state.history.reduce((s,x)=>s+x.pnl,0);const net=()=>state.cash+state.positions.reduce((s,x)=>s+x.margin+pnl(x),0);const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
 function msg(s){document.getElementById('notice').textContent=s}
 function open(side,qty,entry){if(!Number.isFinite(entry)||entry<=0){msg('Živý kurz není dostupný.');return false}const margin=qty*entry;if(margin>state.cash){msg('Nedostatek virtuálních prostředků.');return false}state.cash-=margin;state.positions.push({id:Date.now()+Math.random(),side,qty,entry,margin});return true}
@@ -36,14 +36,15 @@ async function tick(){
  const requestStartedAt=Date.now();
  try {
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
-   let response;try{response=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_last_updated_at=true',{cache:'no-store',signal:controller.signal})}finally{clearTimeout(timeout)}
+   let payload;try{const response=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_last_updated_at=true',{cache:'no-store',signal:controller.signal});
    if(!response.ok)throw new Error('HTTP '+response.status);
-   const payload=await response.json(),quote=Number(payload?.bitcoin?.usd),sourceTime=Number(payload?.bitcoin?.last_updated_at)*1000;
+   payload=await response.json()}finally{clearTimeout(timeout)}
+   const quote=Number(payload?.bitcoin?.usd),sourceTime=Number(payload?.bitcoin?.last_updated_at)*1000;
    if(!Number.isFinite(quote)||quote<=0||!Number.isFinite(sourceTime)||Date.now()-sourceTime>120000||sourceTime>Date.now()+60000)throw new Error('Neplatná nebo zastaralá data');
    if(lastSuccessfulSourceAt && sourceTime < lastSuccessfulSourceAt)throw new Error('Zdroj vrátil starší kurz');
-   if(lastSuccessfulSourceAt && sourceTime === lastSuccessfulSourceAt && livePrice !== null && quote !== livePrice)throw new Error('Nekonzistentní kurz se stejným časem');
+   if(lastSuccessfulSourceAt && sourceTime === lastSuccessfulSourceAt && lastSuccessfulPrice !== null && quote !== lastSuccessfulPrice)throw new Error('Nekonzistentní kurz se stejným časem');
    if(Date.now()-requestStartedAt>30000)throw new Error('Odpověď přišla příliš pozdě');
-   livePrice=quote;lastQuoteAt=Date.now();lastSourceAt=sourceTime;lastSuccessfulSourceAt=sourceTime;status.textContent='CoinGecko · aktualizováno '+new Date(sourceTime).toLocaleString('cs-CZ');
+   livePrice=quote;lastQuoteAt=Date.now();lastSourceAt=sourceTime;lastSuccessfulSourceAt=sourceTime;lastSuccessfulPrice=quote;status.textContent='CoinGecko · aktualizováno '+new Date(sourceTime).toLocaleString('cs-CZ');
    state.prices.push(quote);if(state.prices.length>500)state.prices.shift();
    // Čekající příkazy jsou vyhodnocovány jen podle ověřeného čerstvého kurzu.
    for(const o of [...state.pending]){
